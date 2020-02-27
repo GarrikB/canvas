@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>Canvas Test</title>
+    <style type="text/css">
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body>
+    
+<canvas id="tutorial" width="800" height="500"></canvas>
+<!-- <button type='button' onclick="startStop()">Start/Stop</button> -->
+<script>
+
+function draw() {
+    const canvas = document.getElementById('tutorial');
+    if (canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+
+        const outerX = posX
+        const outerY = posY
+        const outerRadius = 50
+
+        const innerX = randomNumberDeviation( posX, outerRadius/3 )
+        const innerY = randomNumberDeviation( posY, outerRadius/3 )
+        const innerRadius = randomNumberDeviation( outerRadius/3 , outerRadius/3 )
+
+        const gradient = ctx.createRadialGradient(
+            innerX, innerY, innerRadius, 
+            outerX, outerY, outerRadius,
+        );
+        gradient.addColorStop(0, `rgb(${randomRGBNumber()},${randomRGBNumber()},${randomRGBNumber()})`);
+        gradient.addColorStop(.8, `rgb(${randomRGBNumber()},${randomRGBNumber()},${randomRGBNumber()})`);
+        // gradient.addColorStop(0, `rgb(222,22,222)`);
+        // gradient.addColorStop(.8, `rgb(22,222,222)`);   
+        gradient.addColorStop(1, 'rgba(255,255,255,.005)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 800, 500);
+
+    }
+}
+
+
+let movementX = 'RIGHT'
+let movementY = 'DOWN'
+
+const speed = 10
+
+const validKeys = [ 37, 38, 39, 40 ]
+let currentlyPressed = []
+let currentMovement = {
+    'LEFT': false,
+    'RIGHT': false,
+    'UP': false,
+    'DOWN': false,
+}
+
+let posX = 60
+let posY = 100
+
+
+document.addEventListener(
+    'keydown', 
+    (event) => updateDirection((event || window.event).keyCode)
+);
+
+document.addEventListener(
+    'keyup', 
+    (event) => clearDirection((event || window.event).keyCode)
+);
+
+
+const updateDirection = event => {
+    if ( currentlyPressed.includes( event ) || !validKeys.includes(event) ) {
+        return
+    }
+    // currentlyPressed = currentlyPressed.filter( (v) => !(v === event))
+    currentlyPressed.push(event);
+
+    if ( event === 37 )
+        currentMovement['LEFT'] = true
+    if ( event === 39 )
+        currentMovement['RIGHT'] = true
+
+    if ( event === 38 )
+        currentMovement['UP'] = true
+    if ( event === 40 )
+        currentMovement['DOWN' ] = true
+
+}
+
+const clearDirection = event => {
+    if ( !currentlyPressed.includes( event ) ) {
+        return
+    }
+    currentlyPressed = currentlyPressed.filter( (v) => !(v === event) )
+
+    if ( event === 37 )
+        currentMovement['LEFT'] = ''
+    if ( event === 39 )
+        currentMovement['RIGHT'] = ''
+
+    if ( event === 38 )
+        currentMovement['UP'] = ''
+    if ( event === 40 )
+        currentMovement['DOWN'] = '' 
+}
+
+const preventBoundaryBreak = ( minX, maxX, minY, maxY, xChange, yChange ) => {
+    if ( posX < minX )
+        posX = minX
+    else if ( posX > maxX)
+        posX = maxX
+        
+
+    if ( posY < minY )
+        posY = minY
+    else if ( posY > maxY)
+        posY = maxY
+        
+}
+
+const move = (direction) => {
+    let xChange = 0, yChange = 0
+    switch( direction ){
+        case 'LEFT':
+        xChange -= speed
+        break
+        case 'UP':
+        yChange -= speed
+        break
+        case 'RIGHT':
+        xChange += speed
+        break
+        case 'DOWN':
+        yChange += speed
+        break
+    }
+
+    // if( xChange !== 0 && yChange !== 0 ){
+    //     xChange *= 0.70710678118
+    //     yChange *= 0.70710678118
+    //     console.log(xChange,yChange)
+    // }
+
+    preventBoundaryBreak( 50, 750, 50, 450, xChange, yChange )
+
+    if ( xChange !== 0 || yChange !== 0 ) {
+        posX += xChange
+        posY += yChange
+    }
+    draw()
+}
+
+function randomNumberDeviation( number, maxDeviation = 0 ) {
+    const Deviation = Math.floor( Math.random() * maxDeviation * 2 ) - maxDeviation
+    
+    return number - Deviation
+}
+
+function randomRGBNumber(){
+    const firstNum = Math.floor( Math.random() * 3 )
+    const secondNum = ( firstNum === 2 ) ? Math.floor( Math.random() * 6 ) : Math.floor( Math.random() * 10 )
+    const thirdNum = ( firstNum === 2 && secondNum === 5 ) ? Math.floor( Math.random() * 6 ) : Math.floor( Math.random() * 10 )
+
+    return `${firstNum}${secondNum}${thirdNum}`
+}
+
+const gameLoop = () => {
+
+currentMovement['LEFT'] ? move( 'LEFT' ) : ''
+currentMovement['RIGHT'] ? move( 'RIGHT' ) : ''
+currentMovement['UP'] ? move( 'UP' ) : ''
+currentMovement['DOWN'] ? move( 'DOWN' ) : ''
+
+// draw()
+}
+
+const game = setInterval( gameLoop, 17 )
+
+</script>
+
+</body>
+</html>

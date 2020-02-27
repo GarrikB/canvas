@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>Canvas Test</title>
+    <style type="text/css">
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<!-- <body onload="draw()"> -->
+<body> 
+    
+<canvas id="canvas" width="800" height="500"></canvas>
+
+<button type='button' onclick="draw()">draw</button>
+<script>
+
+function draw() {
+    counterStarted = !counterStarted
+    if(counterStarted)
+        startTime = Date.now();
+}
+
+let startTime = new Date()
+let counterStarted = false
+
+function clock() {
+    const ctx = document.getElementById('canvas').getContext('2d')
+    ctx.clearRect(0, 0, 800, 500)
+
+
+    // write Hours
+    ctx.save();
+        ctx.translate(150, 150)
+        ctx.strokeStyle = '#ff6d5b'
+        ctx.lineWidth = 6
+        ctx.lineCap = 'round'
+        for (var i = 0; i < 12; i++) {
+            ctx.beginPath();
+            ctx.rotate(Math.PI / 6);
+            ctx.moveTo(80, 0);
+            ctx.lineTo(90, 0);
+            ctx.stroke();
+        }
+    ctx.restore();
+
+    // MINUTE MARKS
+    ctx.save()
+        ctx.translate(150, 150)
+        ctx.lineWidth = 3
+        for (i = 0; i < 60; i++) {
+            if (i % 5 != 0) {
+                ctx.beginPath()
+                ctx.moveTo(87, 0)
+                ctx.lineTo(90, 0)
+                ctx.stroke()
+            }
+            ctx.rotate(Math.PI / 30)
+        }
+    ctx.restore()
+
+    // CIRCLE
+    ctx.save()
+        ctx.strokeStyle = '#6dff5b'
+        ctx.lineWidth = 7
+        ctx.translate(150, 150)
+        ctx.beginPath()
+        ctx.arc(0, 0, 100, 0, Math.PI * 2)
+        ctx.stroke()
+    ctx.restore()
+
+
+    if ( counterStarted ) {
+        const now = Date.now()
+        // const minutes = Math.floor( (now / 60000 - startTime / 60000) )
+        const seconds = ( (now / 1000 - startTime / 1000) ) // % 60 if you only want to count from 0 to 60 
+        const milliSeconds = ( now - startTime ) % 1000
+        ctx.save()
+            ctx.fillStyle = '#000'
+            ctx.translate(150, 150)
+            ctx.rotate( ( Math.PI / 180 * ( 270 + 6 * seconds ) ) )
+            ctx.fillText(`${seconds < 10 ? '0'+Math.floor(seconds) : Math.floor(seconds) }:${milliSeconds}`, 40, -5);
+            ctx.beginPath()
+            ctx.moveTo(0, 3)
+            ctx.lineTo(85, 0) // pointer point
+            ctx.lineTo(0, -3)
+            ctx.lineTo(-10, 0)
+            ctx.fill()
+        ctx.restore()
+
+    } else {
+        ctx.save()
+            ctx.strokeStyle = '#999'
+            ctx.lineWidth = 4
+            ctx.translate(150, 150)
+            ctx.rotate(Math.PI / 180 * 270)
+            ctx.beginPath()
+            ctx.moveTo(0, 0)
+            ctx.lineTo(70, 0)
+            ctx.stroke()
+        ctx.restore()
+    }
+
+    window.requestAnimationFrame(clock)
+}
+
+window.requestAnimationFrame(clock)
+
+
+</script>
+
+</body>
+</html>

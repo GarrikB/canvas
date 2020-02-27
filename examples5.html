@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>Canvas Test</title>
+    <style type="text/css">
+        canvas { 
+            position: absolute;
+        }
+
+        #stage {
+            width: 900px;
+            height: 600px;
+            position: relative;
+            border: 2px solid black;
+        }
+
+        #ui-layer { z-index: 3; }
+        #game-layer { z-index: 2; }
+        #background-layer { z-index: 1; }
+    </style>
+</head>
+<body>
+    
+<div id="stage">
+    <canvas id="ui-layer" width="900" height="600"></canvas>
+    <canvas id="game-layer" width="900" height="600"></canvas>
+    <canvas id="background-layer" width="900" height="600"></canvas>
+</div>
+
+<script>
+
+let Player = {
+    x: 200,
+    y: 200,
+    speed: 10,
+    rotationSpeed: Math.PI/180 * 10, // Radian, NOT DEGREES
+    rotation: 0, // Radian, NOT DEGREES
+    radius: 20, // Size based on radius
+}
+
+const validKeys = [ 37, 38, 39, 40 ]
+let currentlyPressed = []
+let currentMovement = {
+    'LEFT': false,
+    'RIGHT': false,
+    'UP': false,
+    'DOWN': false,
+}
+
+
+function drawBackground() {
+    const canvas = document.getElementById('background-layer');
+    if (canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(85,123,213)'
+
+        ctx.fillRect(0, 0, 900, 600)
+    }
+}
+
+function drawPlayer(ctx) {
+    ctx.save()
+
+    const playerDraw = new Path2D()
+
+    ctx.translate( Player.x + Player.radius, Player.y + Player.radius )
+
+    ctx.fillStyle = '#fff'
+
+    ctx.rotate( Math.PI/180 * -90 + Player.rotation )
+
+    ctx.translate( -(Player.x + Player.radius), -(Player.y + Player.radius) )
+
+    ctx.fillStyle = '#000'
+    
+    playerDraw.moveTo( Player.x + Player.radius + Player.radius * 1.5, Player.y + Player.radius )
+    playerDraw.arc( 
+        Player.x + Player.radius,
+        Player.y + Player.radius,
+        Player.radius,
+        0.25 * Math.PI,
+        1.75 * Math.PI 
+    )
+    ctx.fill(playerDraw)
+
+    ctx.restore()
+}
+
+function clearLayer(ctx, canvas) {
+    ctx.save()
+        ctx.fillStyle = 'rgba(85, 123, 213, 0.1)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+
+    // ctx.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+function drawGameLayer() {
+    const canvas = document.getElementById('game-layer');
+    if (canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+
+        clearLayer(ctx, canvas)
+
+        drawPlayer(ctx)
+        
+    }
+}
+
+document.addEventListener(
+    'keydown', 
+    (event) => updateDirection((event || window.event).keyCode)
+);
+
+document.addEventListener(
+    'keyup', 
+    (event) => clearDirection((event || window.event).keyCode)
+);
+
+
+const updateDirection = event => {
+    if ( currentlyPressed.includes( event ) || !validKeys.includes(event) ) {
+        return
+    }
+    
+    currentlyPressed.push(event);
+
+    if ( event === 37 )
+        currentMovement['LEFT'] = true
+    if ( event === 39 )
+        currentMovement['RIGHT'] = true
+
+    if ( event === 38 )
+        currentMovement['UP'] = true
+    if ( event === 40 )
+        currentMovement['DOWN' ] = true
+
+}
+
+const clearDirection = event => {
+    if ( !currentlyPressed.includes( event ) ) {
+        return
+    }
+    currentlyPressed = currentlyPressed.filter( (v) => !(v === event) )
+
+    if ( event === 37 )
+        currentMovement['LEFT'] = ''
+    if ( event === 39 )
+        currentMovement['RIGHT'] = ''
+
+    if ( event === 38 )
+        currentMovement['UP'] = ''
+    if ( event === 40 )
+        currentMovement['DOWN'] = '' 
+}
+
+const preventBoundaryBreak = ( minX, maxX, minY, maxY, xChange, yChange ) => {
+    if ( Player.x < minX )
+        Player.x = minX
+    else if ( Player.x > maxX)
+        Player.x = maxX
+        
+
+    if ( Player.y < minY )
+        Player.y = minY
+    else if ( Player.y > maxY)
+        Player.y = maxY
+        
+}
+
+const rotate = ( direction ) => {
+    let rotChange = 0
+    switch( direction ){
+        case 'LEFT':
+            rotChange -= Player.rotationSpeed
+        break
+        case 'RIGHT':
+            rotChange += Player.rotationSpeed
+        break
+    }
+
+    if ( rotChange !== 0 )
+        Player.rotation += rotChange
+
+    // if ( rotChange !== 0 && !currentMovement['DOWN'] ) // INVERTED REVERSE
+    //     Player.rotation += rotChange
+    // else 
+    //     Player.rotation -= rotChange
+}
+
+const move = (direction) => {
+    let xChange = 0, yChange = 0
+    switch( direction ){
+        case 'UP':
+        xChange -= Math.sin( -Player.rotation ) * Player.speed
+        yChange -= Math.cos( -Player.rotation ) * Player.speed
+        break
+        case 'DOWN':
+        xChange += Math.sin( -Player.rotation ) * Player.speed * .5 // SLOWER IN REVERSE
+        yChange += Math.cos( -Player.rotation ) * Player.speed * .5
+        break
+    }
+
+    const canvas = document.getElementById('game-layer');
+    preventBoundaryBreak( Player.radius, canvas.width - Player.radius * 2, Player.radius, canvas.height - Player.radius * 2, xChange, yChange)
+
+    if ( xChange !== 0 || yChange !== 0 ) {
+        Player.x += xChange
+        Player.y += yChange
+    }
+}
+
+drawBackground()
+
+const gameLoop = () => {
+
+currentMovement['LEFT'] ? rotate( 'LEFT' ) : ''
+currentMovement['RIGHT'] ? rotate( 'RIGHT' ) : ''
+currentMovement['UP'] ? move( 'UP' ) : ''
+currentMovement['DOWN'] ? move( 'DOWN' ) : ''
+
+drawGameLayer()
+// requestAnimationFrame(gameLoop)
+}
+
+// requestAnimationFrame(gameLoop)
+const game = setInterval( gameLoop, 17 ) // 17 =~ 1000/60 (60fps)
+
+</script>
+
+</body>
+</html>

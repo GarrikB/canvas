@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>Canvas Test</title>
+    <style type="text/css">
+        canvas { border: 1px solid black; }
+    </style>
+</head>
+<body> 
+    
+<canvas id="canvas" width="800" height="500"></canvas>
+
+<!-- <button type='button' onclick="draw()">draw</button> -->
+<script>
+
+const canvas =  document.getElementById('canvas')
+const ctx = canvas.getContext('2d')
+
+var raf;
+var running = false;
+
+var ball = {
+    x: 100,
+    y: 100,
+    vx: 5,
+    vy: 1,
+    mx: true,
+    my: true,
+    radius: 25,
+    color: 'blue',
+    draw: function() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, true);
+        // ctx.ellipse(this.x, this.y, this.radius*1.5, this.radius*2/3, Math.PI/180 * 90, 0 , Math.PI * 2)
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.fill();
+    }
+};
+
+function clear() {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function draw() {
+    clear();
+    ball.draw();
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    ball.vy = ball.my ? Math.floor(Math.random() * 10) : - Math.floor(Math.random() * 10)
+    ball.vx = ball.mx ? Math.floor(Math.random() * 10) : - Math.floor(Math.random() * 10)
+
+    if (ball.y + ball.vy > canvas.height - ball.radius) {
+        ball.my = false;
+    } else if( ball.y + ball.vy < ball.radius){
+        ball.my = true;
+    }
+    if (ball.x + ball.vx > canvas.width - ball.radius) {
+        ball.mx = false;
+    } else if(ball.x + ball.vx < ball.radius){
+        ball.mx = true;
+    }
+
+    raf = window.requestAnimationFrame(draw);
+}
+
+canvas.addEventListener('mousemove', function(e) {
+    if (!running) {
+        clear();
+        ball.x = e.clientX - 10;
+        ball.y = e.clientY - 10;
+        ball.draw();
+    }
+});
+
+canvas.addEventListener('click', function(e) {
+    if (!running) {
+        raf = window.requestAnimationFrame(draw);
+        running = true;
+    }
+});
+
+canvas.addEventListener('mouseout', function(e) {
+    window.cancelAnimationFrame(raf);
+    running = false;
+});
+
+ball.draw();
+</script>
+
+</body>
+</html>

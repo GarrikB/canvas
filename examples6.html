@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+    <title>Canvas Test</title>
+    <style type="text/css">
+        canvas { 
+            position: absolute;
+        }
+
+        #stage {
+            width: 900px;
+            height: 600px;
+            position: relative;
+            border: 2px solid black;
+        }
+
+        #ui-layer { z-index: 3; }
+        #game-layer { z-index: 2; }
+        #background-layer { z-index: 1; }
+    </style>
+</head>
+<body>
+    
+<div id="stage">
+    <canvas id="ui-layer" width="900" height="600"></canvas>
+    <canvas id="game-layer" width="900" height="600"></canvas>
+    <canvas id="background-layer" width="900" height="600"></canvas>
+</div>
+
+<script>
+
+let Player = {
+    x: 200,
+    y: 200,
+    speed: 20,
+    rotationSpeed: Math.PI/180 * 20, // Radian, NOT DEGREES
+    rotation: 0, // Radian, NOT DEGREES
+    radius: 10, // Size based on radius
+    prevPos: Array(10), // Array with previous positions of the player
+}
+
+let Target = {
+    x: 400,
+    y: 400,
+    radius: 30,
+    prevX: 0,
+    prevY: 0,
+}
+
+const validKeys = [ 37, 38, 39, 40 ]
+let currentlyPressed = []
+let currentMovement = {
+    'LEFT': false,
+    'RIGHT': false,
+    'UP': false,
+    'DOWN': false,
+}
+
+let pointCounter = 0
+let difA = 360 // Difference in angle between player rotation and angle to target
+
+
+function drawBackground() {
+    const canvas = document.getElementById('background-layer');
+    if (canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = 'rgb(85,123,213)'
+        // ctx.fillStyle = 'rgb(0, 0, 0)'
+
+        ctx.fillRect(0, 0, 900, 600)
+    }
+}
+
+function drawTarget(ctx) {
+    // ctx.save()
+    // const { prevX, prevY, radius } =  Target
+    // ctx.clearRect( prevX - radius, prevY - radius, radius * 2, radius * 2)
+
+    // ctx.restore()
+
+    // ctx.save()
+
+    const targetDraw = new Path2D()
+    ctx.fillStyle = 'rgb(221,123,213)'
+    targetDraw.arc(Target.x, Target.y, Target.radius, 0, Math.PI * 2)
+
+    ctx.fill(targetDraw)
+
+    ctx.restore()
+}
+
+const moveTarget = () => {
+    const canvas = document.getElementById('game-layer');
+    const ctx = canvas.getContext('2d');
+    Target.prevX = Target.x
+    Target.prevY = Target.y
+    Target.x = Math.floor(Math.random() * (canvas.width - Player.radius * 3) + Player.radius )
+    Target.y = Math.floor(Math.random() * (canvas.height - Player.radius * 3) + Player.radius )
+}
+
+function drawPlayer(ctx) {
+    ctx.save()
+
+    const playerDraw = new Path2D()
+
+    ctx.translate( Player.x + Player.radius, Player.y + Player.radius )
+
+    ctx.fillStyle = '#fff'
+
+    ctx.rotate( Math.PI/180 * -90 + Player.rotation )
+
+    ctx.translate( -(Player.x + Player.radius), -(Player.y + Player.radius) )
+
+    ctx.fillStyle = '#000'
+    ctx.strokeStyle = '#fff'
+    
+    playerDraw.moveTo( Player.x + Player.radius + Player.radius * 1.5, Player.y + Player.radius )
+    playerDraw.arc( 
+        Player.x + Player.radius,
+        Player.y + Player.radius,
+        Player.radius,
+        0.25 * Math.PI,
+        1.75 * Math.PI 
+    )
+    playerDraw.lineTo( Player.x + Player.radius + Player.radius * 1.5, Player.y + Player.radius )
+    ctx.closePath()
+    
+    ctx.fill(playerDraw)
+    ctx.stroke(playerDraw)
+
+    ctx.restore()
+}
+
+function clearLayer(ctx, canvas) {
+    ctx.save()
+        ctx.fillStyle = 'rgba(85, 123, 213, 0.1)'
+        // ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+    ctx.restore()
+
+    // ctx.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+function drawGameLayer() {
+    const canvas = document.getElementById('game-layer');
+    if (canvas.getContext) {
+        const ctx = canvas.getContext('2d');
+
+        clearLayer(ctx, canvas)
+
+        drawPlayer(ctx)
+
+        drawTarget(ctx)
+        
+    }
+}
+
+document.addEventListener(
+    'keydown', 
+    (event) => updateDirection((event || window.event).keyCode)
+);
+
+document.addEventListener(
+    'keyup', 
+    (event) => clearDirection((event || window.event).keyCode)
+);
+
+const faceTarget = () => {
+    const differenceX = Player.x + Player.radius - Target.x 
+    const differenceY = Player.y + Player.radius - Target.y 
+
+    let angle = Math.atan2( differenceY, differenceX ) * 180 / Math.PI;
+    angle = angle > 0 ? angle : angle + 360
+
+    let playerAngle = ( ( Player.rotation * 180 / Math.PI ) - 90 ) % 360
+    playerAngle = playerAngle < 0 ? playerAngle + 360 : playerAngle
+
+    difA = (angle - playerAngle + 180 ) % 360
+
+    const rot = difA < 180 && difA > 0 ? Player.rotationSpeed * 180 / Math.PI : -Player.rotationSpeed * 180 / Math.PI
+    
+    Player.rotation += Math.PI / 180 * rot
+
+}
+
+const checkCollision = () => {
+    let topL = false, topR = false, botL = false, botR = false
+    const colBox = {
+        topL : { x: Target.x - Target.radius, y: Target.y - Target.radius},
+        topR : { x: Target.x + Target.radius, y: Target.y - Target.radius},
+        bottomL : { x: Target.x - Target.radius, y: Target.y + Target.radius},
+        bottomR : { x: Target.x + Target.radius, y: Target.y + Target.radius},
+    }
+
+    //  CHECK RIGHT IN THE MIDDLE OF THE PLAYER
+    // if( Player.x + Player.radius > colBox.topL.x && Player.y + Player.radius > colBox.topL.y )
+    //     topL = true
+    // if( Player.x + Player.radius < colBox.topR.x && Player.y + Player.radius > colBox.topR.y )
+    //     topR = true
+    // if( Player.x + Player.radius > colBox.bottomL.x && Player.y + Player.radius < colBox.bottomL.y )
+    //     botL = true
+    // if( Player.x + Player.radius < colBox.bottomR.x && Player.y + Player.radius < colBox.bottomR.y )
+    //     botR = true
+
+    // if( topL && topR && botL && botR )
+    //     return true
+
+
+    // CHECK IN FOURS SPOTS around player radius
+    if( Player.x + Player.radius > colBox.topL.x && Player.y + Player.radius * 0 > colBox.topL.y )
+        topL = true
+    if( Player.x + Player.radius < colBox.topR.x && Player.y + Player.radius * 0 > colBox.topR.y )
+        topR = true
+    if( Player.x + Player.radius > colBox.bottomL.x && Player.y + Player.radius * 0 < colBox.bottomL.y )
+        botL = true
+    if( Player.x + Player.radius < colBox.bottomR.x && Player.y + Player.radius * 0 < colBox.bottomR.y )
+        botR = true
+
+    if( topL && topR && botL && botR )
+        return true
+
+    if( Player.x + Player.radius * 2 > colBox.topL.x && Player.y + Player.radius > colBox.topL.y )
+        topL = true
+    if( Player.x + Player.radius * 2 < colBox.topR.x && Player.y + Player.radius > colBox.topR.y )
+        topR = true
+    if( Player.x + Player.radius * 2 > colBox.bottomL.x && Player.y + Player.radius < colBox.bottomL.y )
+        botL = true
+    if( Player.x + Player.radius * 2 < colBox.bottomR.x && Player.y + Player.radius < colBox.bottomR.y )
+        botR = true
+
+    if( topL && topR && botL && botR )
+        return true
+
+    if( Player.x + Player.radius > colBox.topL.x && Player.y + Player.radius * 2 > colBox.topL.y )
+        topL = true
+    if( Player.x + Player.radius < colBox.topR.x && Player.y + Player.radius * 2 > colBox.topR.y )
+        topR = true
+    if( Player.x + Player.radius > colBox.bottomL.x && Player.y + Player.radius * 2 < colBox.bottomL.y )
+        botL = true
+    if( Player.x + Player.radius < colBox.bottomR.x && Player.y + Player.radius * 2 < colBox.bottomR.y )
+        botR = true
+
+    if( topL && topR && botL && botR )
+        return true
+
+    if( Player.x + Player.radius * 0 > colBox.topL.x && Player.y + Player.radius > colBox.topL.y )
+        topL = true
+    if( Player.x + Player.radius * 0 < colBox.topR.x && Player.y + Player.radius > colBox.topR.y )
+        topR = true
+    if( Player.x + Player.radius * 0 > colBox.bottomL.x && Player.y + Player.radius < colBox.bottomL.y )
+        botL = true
+    if( Player.x + Player.radius * 0 < colBox.bottomR.x && Player.y + Player.radius < colBox.bottomR.y )
+        botR = true
+
+    if( topL && topR && botL && botR )
+        return true
+
+    return false
+}
+
+const updateDirection = event => {
+    if ( event === 67 )
+        gameLoop()
+    if ( event === 68 )
+        console.log(Player.prevPos)
+    if ( currentlyPressed.includes( event ) || !validKeys.includes(event) ) {
+        return
+    }
+    
+    currentlyPressed.push(event);
+    
+    if ( event === 37 )
+        currentMovement['LEFT'] = true
+    if ( event === 39 )
+        currentMovement['RIGHT'] = true
+
+    if ( event === 38 )
+        currentMovement['UP'] = true
+    if ( event === 40 )
+        currentMovement['DOWN' ] = true
+
+}
+
+const clearDirection = event => {
+    if ( !currentlyPressed.includes( event ) ) {
+        return
+    }
+    currentlyPressed = currentlyPressed.filter( (v) => !(v === event) )
+
+    if ( event === 37 )
+        currentMovement['LEFT'] = ''
+    if ( event === 39 )
+        currentMovement['RIGHT'] = ''
+
+    if ( event === 38 )
+        currentMovement['UP'] = ''
+    if ( event === 40 )
+        currentMovement['DOWN'] = '' 
+}
+
+const preventBoundaryBreak = ( minX, maxX, minY, maxY, xChange, yChange ) => {
+    if ( Player.x < minX )
+        Player.x = minX
+    else if ( Player.x > maxX)
+        Player.x = maxX
+        
+
+    if ( Player.y < minY )
+        Player.y = minY
+    else if ( Player.y > maxY)
+        Player.y = maxY
+        
+}
+
+const rotate = ( direction ) => {
+    let rotChange = 0
+    switch( direction ){
+        case 'LEFT':
+            rotChange -= Player.rotationSpeed
+        break
+        case 'RIGHT':
+            rotChange += Player.rotationSpeed
+        break
+    }
+
+    if ( rotChange !== 0 )
+        Player.rotation += rotChange
+
+    // if ( rotChange !== 0 && !currentMovement['DOWN'] ) // INVERTED REVERSE
+    //     Player.rotation += rotChange
+    // else 
+    //     Player.rotation -= rotChange
+}
+
+const move = (direction) => {
+    faceTarget()
+    let xChange = 0, yChange = 0
+    switch( direction ){
+        case 'UP':
+        xChange -= Math.sin( -Player.rotation ) * Player.speed
+        yChange -= Math.cos( -Player.rotation ) * Player.speed
+        break
+        case 'DOWN':
+        xChange += Math.sin( -Player.rotation ) * Player.speed * .5 // SLOWER IN REVERSE
+        yChange += Math.cos( -Player.rotation ) * Player.speed * .5
+        break
+    }
+
+    const canvas = document.getElementById('game-layer');
+    preventBoundaryBreak( Player.radius, canvas.width - Player.radius * 3, Player.radius, canvas.height - Player.radius * 3, xChange, yChange)
+
+    if ( xChange !== 0 || yChange !== 0 ) {
+        Player.x += xChange
+        Player.y += yChange
+    }
+}
+
+drawBackground()
+
+const displayPoints = () => {
+    const uiCTX = document.getElementById('ui-layer').getContext('2d');
+    uiCTX.save()
+    uiCTX.clearRect(500, 0, 900, 50)
+    uiCTX.font = '48px serif';
+    uiCTX.fillStyle = '#fff';
+    uiCTX.fillText(`POINTS: ${pointCounter}`, 550, 50 )
+    uiCTX.restore()
+}
+
+const checkMovement = () => {
+    currentMovement['LEFT'] ? rotate( 'LEFT' ) : ''
+    currentMovement['RIGHT'] ? rotate( 'RIGHT' ) : ''
+    currentMovement['UP'] ? move( 'UP' ) : ''
+    currentMovement['DOWN'] ? move( 'DOWN' ) : ''
+}
+
+const gameLoop = () => {
+
+    checkMovement()
+
+    if ( checkCollision() ) {
+        moveTarget()
+        
+        pointCounter++
+
+        displayPoints()
+    }
+    
+    for( let i=Player.prevPos.length-1; i>0; i-- ){
+        Player.prevPos[i] = Player.prevPos[i-1]
+    }
+    Player.prevPos[0] = {x: Player.x, y: Player.y}
+
+    drawGameLayer()
+    requestAnimationFrame(gameLoop)
+}
+
+requestAnimationFrame(gameLoop)
+// const game = setInterval( gameLoop, 17 ) // 17 =~ 1000/60 (60fps)
+
+</script>
+
+</body>
+</html>
